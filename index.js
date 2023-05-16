@@ -78,6 +78,23 @@ async function run() {
       result = await productCollection.updateOne(filter,product,option)
       res.send(result)
     })
+
+    app.put('/services/:id',async(req,res)=>{
+      const find = {_id : new ObjectId(req.params.id)}
+      const updateSercice = req.body
+      const option = {upsert:true};
+      const service = {
+        $set:{
+          title:updateSercice.title,
+          img:updateSercice.img,
+          price:updateSercice.price,
+          rating:updateSercice.rating
+        }
+      }
+      const result = await serviceCollection.updateOne(find,service,option)
+      res.send(result)
+    })
+
     //POST sections
     app.post('/services',async(req,res)=>{
       const service = req.body;
