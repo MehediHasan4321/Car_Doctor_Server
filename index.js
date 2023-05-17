@@ -118,9 +118,9 @@ async function run() {
       res.send(result)
     })
 
-    app.post('/orders', async (req, res) => {
+    app.post('/serviceOrders', async (req, res) => {
       const order = req.body;
-      const result = await orderCollection.insertOne(order)
+      const result = await serviceOrderCollection.insertOne(order)
       res.send(result)
     })
     app.post('/products', async (req, res) => {
@@ -129,7 +129,7 @@ async function run() {
       res.send(result)
     })
     //Delete Order
-    app.delete('/orders/:id', async (req, res) => {
+    app.delete('/sereviceOrders/:id', async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await orderCollection.deleteOne(query)
