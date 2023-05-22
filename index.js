@@ -1,5 +1,6 @@
 const express = require('express')
 const app = express();
+const jwt = require('jsonwebtoken')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 const cors = require('cors')
@@ -21,12 +22,38 @@ const client = new MongoClient(uri, {
   }
 });
 
+const verifyJWT = (req, res, next) => {
+  console.log('verifyJWT hitting')
+  const authorization = req.headers.authorization
+
+  if (!authorization) {
+    return res.status(401).send({ error: true, message: 'You Are Unauthorized' })
+  }
+  const token = authorization.split(' ')[1]
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoted) => {
+    if (err) {
+      return res.status(401).send({ error: true, message: 'You Are Unauthorized' })
+    }
+    req.decoted = decoted
+    next()
+  })
+}
+
 async function run() {
   try {
     const bannerCollection = client.db('Car-Doctor-website').collection('Car-Doctor-bannerContent')
     const serviceCollection = client.db('Car-Doctor-website').collection('Car-Doctor-Services')
     const serviceOrderCollection = client.db('Car-Doctor-website').collection('Car-Doctor-Orders')
     const productCollection = client.db('Car-Doctor-website').collection('Car-Doctor-Products')
+
+    //jwt token 
+    app.post('/jwt', (req, res) => {
+      const user = req.body;
+
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+
+      res.send({ token })
+    })
 
     app.get('/bannerContent', async (req, res) => {
       const cursore = bannerCollection.find()
@@ -47,8 +74,8 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/orders', async (req, res) => {
-
+    app.get('/orders', verifyJWT, async (req, res) => {
+      
       let query = {}
       if (req.query?.email) {
         query = { customerEmail: req.query.email }
@@ -86,13 +113,13 @@ async function run() {
       const id = req.params.id
       const serviceOrder = req.body
       const find = { _id: new ObjectId(id) }
-      const option = {upsert:true}
+      const option = { upsert: true }
       const update = {
         $set: {
           status: serviceOrder.status
         }
       }
-      const result = await serviceOrderCollection.updateOne(find, update,option)
+      const result = await serviceOrderCollection.updateOne(find, update, option)
       res.send(result)
     })
     app.put('/services/:id', async (req, res) => {
@@ -144,10 +171,10 @@ async function run() {
       res.send(result)
     })
 
-    app.delete('/services/:id',async(req,res)=>{
+    app.delete('/services/:id', async (req, res) => {
       const id = req.params.id
-      const query = {_id : new ObjectId(id)}
-      const result =await serviceCollection.deleteOne(query)
+      const query = { _id: new ObjectId(id) }
+      const result = await serviceCollection.deleteOne(query)
       res.send(result)
     })
 
