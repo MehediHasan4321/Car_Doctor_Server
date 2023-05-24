@@ -25,7 +25,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    const toyThamnailCollection = client.db('Car-Doctor-website').collection('ToyThamnils')
+    const toyThamnailCollection = client.db('Car-Doctor-website').collection('Car-Doctor-Services')
     const allToyCollection = client.db('Car-Doctor-website').collection('All-Toy-Collection')
     const userReviewCollection = client.db('Car-Doctor-website').collection('userReview')
     //All Get Methods are here 
