@@ -1,6 +1,5 @@
 const express = require('express')
 const app = express();
-const jwt = require('jsonwebtoken')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 const cors = require('cors')
@@ -22,159 +21,107 @@ const client = new MongoClient(uri, {
   }
 });
 
-const verifyJWT = (req, res, next) => {
-  console.log('verifyJWT hitting')
-  const authorization = req.headers.authorization
 
-  if (!authorization) {
-    return res.status(401).send({ error: true, message: 'You Are Unauthorized' })
-  }
-  const token = authorization.split(' ')[1]
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoted) => {
-    if (err) {
-      return res.status(401).send({ error: true, message: 'You Are Unauthorized' })
-    }
-    req.decoted = decoted
-    next()
-  })
-}
 
 async function run() {
   try {
-    const bannerCollection = client.db('Car-Doctor-website').collection('Car-Doctor-bannerContent')
-    const serviceCollection = client.db('Car-Doctor-website').collection('Car-Doctor-Services')
-    const serviceOrderCollection = client.db('Car-Doctor-website').collection('Car-Doctor-Orders')
-    const productCollection = client.db('Car-Doctor-website').collection('Car-Doctor-Products')
+    const toyThamnailCollection = client.db('Car-Doctor-website').collection('ToyThamnils')
+    const allToyCollection = client.db('Car-Doctor-website').collection('All-Toy-Collection')
+    const userReviewCollection = client.db('Car-Doctor-website').collection('userReview')
+    //All Get Methods are here 
 
-    //jwt token 
-    app.post('/jwt', (req, res) => {
-      const user = req.body;
+    const indexKey = { name: 1 }
+    const indexOption = { name: "name" }
+    await allToyCollection.createIndex(indexKey, indexOption)
 
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+    app.get('/searchToy/:text', async (req, res) => {
+      const searchText = req.params.text;
+      const result = await allToyCollection.find({
+        $or: [
+          { name: { $regex: searchText, $options: "i" } }
+        ]
+      }).toArray()
+      res.send(result)
 
-      res.send({ token })
     })
 
-    app.get('/bannerContent', async (req, res) => {
-      const cursore = bannerCollection.find()
-      const result = await cursore.toArray()
+    app.get('/banners', async (req, res) => {
+      const result = await toyThamnailCollection.find().toArray()
       res.send(result)
     })
 
-    app.get('/services', async (req, res) => {
-      const cursore = serviceCollection.find()
-      const result = await cursore.toArray()
+    app.get('/allToy', async (req, res) => {
+      const page = parseInt(req.query.page) || 0
+      const limit = parseInt(req.query.limit) || 10
+      const skip = page * limit
+      const result = await allToyCollection.find().skip(skip).limit(limit).toArray()
       res.send(result)
     })
 
-    app.get('/services/:id', async (req, res) => {
-      const id = req.params.id;
-      const quary = { _id: new ObjectId(id) }
-      const result = await serviceCollection.findOne(quary)
+   
+
+    app.get('/userReview', async (req, res) => {
+      const result = await userReviewCollection.find().toArray()
       res.send(result)
     })
 
-    app.get('/orders', verifyJWT, async (req, res) => {
-      
-      let query = {}
-      if (req.query?.email) {
-        query = { customerEmail: req.query.email }
-      }
-      const result = await serviceOrderCollection.find(query).toArray()
+    app.get('/allToy/:category', async (req, res) => {
+      const query = req.params.category
+      const result = await allToyCollection.find({ category: query }).toArray()
       res.send(result)
-    })
-    app.get('/allServieOrder', async (req, res) => {
-      const result = await serviceOrderCollection.find().toArray()
-      res.send(result)
-    })
-    app.get('/products', async (req, res) => {
-      const result = await productCollection.find().toArray()
-      res.send(result)
+
+
     })
 
-    app.put('/products/:id', async (req, res) => {
-      id = req.params.id;
-      const updateProduct = req.body
-      const filter = { _id: new ObjectId(id) }
-      const option = { upsert: true }
-      const product = {
-        $set: {
-          name: updateProduct.name,
-          price: updateProduct.proPrice,
-          rating: updateProduct.rating,
-          img_url: updateProduct.imgUrl
-        }
-      }
-      result = await productCollection.updateOne(filter, product, option)
+    app.get('/myToys/:email', async (req, res) => {
+      const email = req.params.email
+      const sortValue=req.query.sort
+      const result = await allToyCollection.find({ seller: email }).sort({ price: sortValue }).toArray()
       res.send(result)
-    })
 
-    app.put('/allServieOrder/:id', async (req, res) => {
+    })
+    app.get('/toyDetails/:id', async (req, res) => {
       const id = req.params.id
-      const serviceOrder = req.body
-      const find = { _id: new ObjectId(id) }
+      const query = { _id: new ObjectId(id) }
+      const result = await allToyCollection.findOne(query)
+      res.send(result)
+    })
+    app.get('/totalToy', async (req, res) => {
+      const result = await allToyCollection.estimatedDocumentCount()
+      res.send({ totalProduct: result })
+    })
+    //PUT Function is Here
+    app.put('/allToy/:id', async (req, res) => {
+      const toy = req.body
+      const query = { _id: new ObjectId(req.params.id) }
       const option = { upsert: true }
       const update = {
         $set: {
-          status: serviceOrder.status
+          name: toy.name,
+          img: toy.img,
+          price: toy.price,
+          rating: toy.rating,
+          category: toy.category,
+          subCategory: toy.subCategory,
+          details: toy.details,
+          quantity: toy.quantity
         }
       }
-      const result = await serviceOrderCollection.updateOne(find, update, option)
+      const result = await allToyCollection.updateOne(query, update, option)
       res.send(result)
     })
-    app.put('/services/:id', async (req, res) => {
-      const find = { _id: new ObjectId(req.params.id) }
-      const updateSercice = req.body
-      const option = { upsert: true };
-      const service = {
-        $set: {
-          title: updateSercice.title,
-          img: updateSercice.img,
-          price: updateSercice.price,
-          rating: updateSercice.rating
-        }
-      }
-      const result = await serviceCollection.updateOne(find, service, option)
+    //Post Function is here
+    app.post('/addToy', async (req, res) => {
+      const toy = req.body
+      const result = await allToyCollection.insertOne(toy)
       res.send(result)
     })
 
-    //POST sections
-    app.post('/services', async (req, res) => {
-      const service = req.body;
-      const result = await serviceCollection.insertOne(service)
-      res.send(result)
-    })
-
-    app.post('/serviceOrders', async (req, res) => {
-      const order = req.body;
-      const result = await serviceOrderCollection.insertOne(order)
-      res.send(result)
-    })
-    app.post('/products', async (req, res) => {
-      const product = req.body
-      const result = await productCollection.insertOne(product);
-      res.send(result)
-    })
-    //Delete Order
-    app.delete('/sereviceOrders/:id', async (req, res) => {
+    //Delete function is here
+    app.delete('/allToy/:id', async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
-      const result = await orderCollection.deleteOne(query)
-      res.send(result)
-    })
-
-    //Delete product 
-    app.delete('/products/:id', async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
-      const result = await productCollection.deleteOne(query)
-      res.send(result)
-    })
-
-    app.delete('/services/:id', async (req, res) => {
-      const id = req.params.id
-      const query = { _id: new ObjectId(id) }
-      const result = await serviceCollection.deleteOne(query)
+      const result = await allToyCollection.deleteOne(query)
       res.send(result)
     })
 
@@ -182,7 +129,7 @@ async function run() {
     await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Car Doctor Server successfully connected to MongoDB!");
+    console.log("Toy Server successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
